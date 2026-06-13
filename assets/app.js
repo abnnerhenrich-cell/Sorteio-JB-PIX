@@ -12,14 +12,13 @@ const cfg = window.SORTEIO_CONFIG || {tipo:'dezenas',label:'Dezenas',itemName:'d
 // Firebase novo da Kelly - projeto: sorteio-f5431
 // Este mesmo projeto salva dezenas e centenas em coleções separadas.
 const firebaseConfig = {
-  apiKey: "AIzaSyDm4LiN-4gIhtFfZvuCyFB9hHAv0rXtu5I",
-  authDomain: "jbpix-8537d.firebaseapp.com",
-  projectId: "jbpix-8537d",
-  storageBucket: "jbpix-8537d.firebasestorage.app",
-  messagingSenderId: "345986235961",
-  appId: "1:345986235961:web:7ed3f87327d17c586757e8",
-  measurementId: "G-84X6VNL7XT"
-};
+  apiKey: "AIzaSyBsGIvJlD9F9fH74qJUzsZ3GN139hKnpcs",
+  authDomain: "sorteio-f5431.firebaseapp.com",
+  projectId: "sorteio-f5431",
+  storageBucket: "sorteio-f5431.firebasestorage.app",
+  messagingSenderId: "788509225413",
+  appId: "1:788509225413:web:8b5cb3683b4203d7955bac",
+  measurementId: "G-8NVZNYYHMJ"
 };
 const app = initializeApp(firebaseConfig);
 const firestore = getFirestore(app);
