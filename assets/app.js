@@ -33,7 +33,7 @@ let selectedNumeros = [];
 let sorteios = [];
 let participantes = [];
 let ganhadores = [];
-let settings = {nome:'JB PIX',rodape:'Kelly Menezes',cadastroUrl:''};
+let settings = {nome:'JB PIX',rodape:'JB PIX',cadastroUrl:''};
 let adminLogado = false;
 let authReady = false;
 
