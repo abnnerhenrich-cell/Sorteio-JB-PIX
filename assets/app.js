@@ -62,7 +62,7 @@ function textoNumeros(p){ return numerosDoParticipante(p).join(', '); }
 function todosNumeros(){
   const start = Number(cfg.start ?? 0);
   const total = Number(cfg.total ?? 100);
-  return Array.from({length:total},(_,i)=>String(i+start).padStart(cfg.digits,'0'));
+  return Array.from({length:total},(_,i)=>String(i + start).padStart(cfg.digits,'0'));
 }
 function numerosOcupados(sorteioId){
   return participantes
@@ -154,8 +154,7 @@ function abrirCadastro(){
 }
 
 function renderAll(){
-  const nomeSite = (!settings.nome || settings.nome === 'SorteClub' || settings.nome === 'Clube da Sorte') ? 'JB PIX' : settings.nome;
-  if($('siteLogo')) $('siteLogo').innerHTML = '<span>' + escapeHtml(nomeSite) + '</span>';
+  if($('siteLogo')) $('siteLogo').innerHTML = '<span>' + escapeHtml(settings.nome) + '</span>';
   if($('footerName')) $('footerName').textContent = settings.rodape;
   if($('year')) $('year').textContent = new Date().getFullYear();
 
@@ -170,9 +169,10 @@ function renderAll(){
       const ocupadas = numerosOcupados(s.id).length;
       const livres = cfg.total - ocupadas;
       const limite = limiteSorteio(s);
-      return `<div class="sorteio">
+      const pausado = s.status === 'pausado';
+      return `<div class="sorteio ${pausado?'paused-card':''}">
         <div>
-          <span class="tag ${s.status === 'pausado' ? 'paused-tag' : ''}">${s.status === 'pausado' ? 'PAUSADO' : 'ATIVO'}</span>
+          <span class="tag ${pausado?'paused-tag':''}">${pausado?'PAUSADO':'ATIVO'}</span>
           <h3>${escapeHtml(s.titulo)}</h3>
           <p>${escapeHtml(s.descricao || '')}</p>
           <div class="price">${escapeHtml(s.premio)}</div>
@@ -182,8 +182,9 @@ function renderAll(){
             <span class="mini-tag">${livres} ${cfg.itemName}s livres</span>
             <span class="mini-tag">${ocupadas} escolhidas</span>
           </div>
+          ${pausado?'<div class="notice">Sorteio pausado: aparece para todos, mas não aceita novas escolhas.</div>':''}
         </div>
-        ${s.status === 'pausado' ? '<button type="button" class="btn secondary" disabled>⏸️ Sorteio pausado</button>' : `<button type="button" class="btn ok" data-participar="${s.id}">🎯 Quero Participar</button>`}
+        <button type="button" class="btn ${pausado?'secondary':'ok'}" ${pausado?'disabled':''} data-participar="${s.id}">${pausado?'⏸️ Pausado':'🎯 Quero Participar'}</button>
       </div>`;
     }).join('') || `<div class="sorteio">Nenhum sorteio de ${cfg.label.toLowerCase()} disponível no momento.</div>`;
   }
@@ -260,7 +261,7 @@ async function salvarParticipacao(){
 
   const s = sorteios.find(x => x.id === currentSorteioId);
   if(!s) return alert('Sorteio não encontrado.');
-  if(s.status === 'pausado') return alert('Este sorteio está pausado e não aceita escolhas agora.');
+  if(s.status === 'pausado') return alert('Este sorteio está pausado e não aceita novas escolhas.');
 
   const limite = limiteSorteio(s);
   if(!nome || !whats) return alert('Preencha nome e WhatsApp.');
@@ -349,12 +350,12 @@ function renderAdmin(){
   if($('tabSorteios')) $('tabSorteios').innerHTML = `
     <h2 class="section-title">Gerenciar Sorteios</h2>
     <div class="form">
-      <label>Nome da loteria</label>
-      <input id="sTitulo" placeholder="">
-      <label>Horário / descrição</label>
-      <textarea id="sDesc" placeholder=""></textarea>
+      <label>Título do sorteio</label>
+      <input id="sTitulo" placeholder="Ex: Sorteio das 21H">
+      <label>Descrição</label>
+      <textarea id="sDesc" placeholder="Descrição do sorteio"></textarea>
       <label>Prêmio</label>
-      <input id="sPremio" placeholder="">
+      <input id="sPremio" placeholder="Ex: R$ 50,00">
       <label>Data</label>
       <input id="sData" type="date">
       <label>Quantidade que cada cliente pode escolher</label>
@@ -367,30 +368,33 @@ function renderAdmin(){
 
   if($('tabParticipantes')) $('tabParticipantes').innerHTML = `
     <h2 class="section-title">Participantes</h2>
-    <button type="button" class="btn danger" id="btnLimparParticipantes">🧹 Excluir histórico de participantes</button><br><br>${tableParticipantes()}`;
-
-  if($('tabPremiados')) $('tabPremiados').innerHTML = `
-    <h2 class="section-title">Encontrar e Selecionar Ganhador</h2>
     <div class="form">
-      <div class="notice">Filtro rápido: escolha o sorteio e selecione uma ${cfg.itemName}; abaixo aparece quem escolheu.</div>
-      <label>Sorteio</label>
-      <select id="filtroSorteioGanhador">
-        <option value="">Todos os sorteios</option>
-        ${sorteios.map(s => `<option value="${s.id}">${escapeHtml(s.titulo || 'Sorteio sem nome')}</option>`).join('')}
-      </select>
-      <label>${capitalize(cfg.itemName)}</label>
-      <select id="filtroNumeroGanhador">
-        <option value="">Selecione</option>
+      <label>Filtrar participantes por ${cfg.itemName}</label>
+      <select id="filtroNumeroParticipante">
+        <option value="">Todas</option>
         ${todosNumeros().map(n => `<option value="${n}">${n}</option>`).join('')}
       </select>
-      <div id="resultadoFiltroGanhador" class="notice">Selecione uma ${cfg.itemName} para ver quem escolheu.</div>
-      <label>Selecionar manualmente</label>
+      <div id="resultadoFiltroParticipante" class="notice">Selecione uma ${cfg.itemName} para ver quem escolheu.</div>
+      <button type="button" class="btn danger" id="btnLimparParticipantes">🗑️ Excluir histórico de participantes</button>
+    </div><br>${tableParticipantes()}`;
+
+  if($('tabPremiados')) $('tabPremiados').innerHTML = `
+    <h2 class="section-title">Selecionar Ganhador</h2>
+    <div class="form">
+      <div class="notice">Filtro rápido: selecione uma ${cfg.itemName} e veja automaticamente quem escolheu.</div>
+      <label>Filtrar por ${cfg.itemName}</label>
+      <select id="filtroNumeroGanhador">
+        <option value="">Selecione uma ${cfg.itemName}</option>
+        ${todosNumeros().map(n => `<option value="${n}">${n}</option>`).join('')}
+      </select>
+      <div id="resultadoFiltroGanhador" class="notice">Escolha uma ${cfg.itemName} para listar os participantes.</div>
+      <label>Confirmar ganhador manualmente</label>
       <select id="ganhadorManual">
         <option value="">Selecione o ganhador</option>
         ${participantes.map(p => `<option value="${p.id}">${escapeHtml(textoNumeros(p))} - ${escapeHtml(p.nome)} | ${escapeHtml(p.sorteioTitulo)}</option>`).join('')}
       </select>
       <button type="button" class="btn ok" id="btnConfirmarGanhador">🏆 Confirmar Ganhador</button>
-      <button type="button" class="btn danger" id="btnLimparGanhadores">🧹 Excluir histórico de ganhadores</button>
+      <button type="button" class="btn danger" id="btnLimparGanhadores">🗑️ Excluir histórico de ganhadores</button>
     </div><br>${tableGanhadores()}`;
 
   if($('tabAparencia')) $('tabAparencia').innerHTML = `
@@ -423,11 +427,7 @@ function tableSorteios(){
 }
 
 function tableParticipantes(){
-  return `<div class="form">
-    <label>Filtrar por ${cfg.itemName}</label>
-    <select id="filtroParticipantesNumero"><option value="">Todas</option>${todosNumeros().map(n => `<option value="${n}">${n}</option>`).join('')}</select>
-    <div id="resultadoFiltroParticipantes" class="notice">Selecione uma ${cfg.itemName} para ver os nomes rapidamente.</div>
-  </div><br><div class="table-wrap"><table class="table">
+  return `<div class="table-wrap"><table class="table">
     <tr><th>${capitalize(cfg.itemName)}(s)</th><th>Nome</th><th>WhatsApp</th><th>Sorteio</th></tr>
     ${participantes.map(p => `<tr><td><strong>${escapeHtml(textoNumeros(p) || '-')}</strong></td><td>${escapeHtml(p.nome)}</td><td>${escapeHtml(p.whats)}</td><td>${escapeHtml(p.sorteioTitulo)}</td></tr>`).join('')}
   </table></div>`;
@@ -450,16 +450,17 @@ async function criarSorteio(){
   const data = $('sData')?.value || new Date().toISOString().slice(0,10);
   const limiteNumeros = Number($('sLimiteNumeros')?.value || 1);
 
-  // Nome da loteria, horário/descrição e prêmio podem ficar em branco e serem preenchidos do jeito que você quiser no painel.
-  const tituloFinal = titulo || 'Sorteio';
-  const premioFinal = premio || '';
+  if(!titulo){
+    window.__criandoSorteio = false;
+    return alert('Preencha o título do sorteio.');
+  }
 
   try{
     const payload = {
       tipo: cfg.tipo,
-      titulo: tituloFinal,
-      descricao: descricao || '',
-      premio: premioFinal,
+      titulo,
+      descricao: descricao || `Escolha ${limiteNumeros} ${cfg.itemName}${limiteNumeros>1?'s':''} para participar.`,
+      premio: premio || '',
       limiteNumeros,
       status: 'ativo',
       data,
@@ -510,6 +511,40 @@ async function excluirSorteio(id){
   for(const item of whatsSnap.docs) await deleteDoc(doc(firestore, `whats_${cfg.tipo}`, item.id));
 }
 
+
+function participantesPorNumero(numero){
+  return participantes.filter(p => numerosDoParticipante(p).includes(numero));
+}
+
+function renderFiltroNumero(targetId, numero){
+  const box = $(targetId);
+  if(!box) return;
+  if(!numero){
+    box.innerHTML = `Selecione uma ${cfg.itemName} para ver quem escolheu.`;
+    return;
+  }
+  const lista = participantesPorNumero(numero);
+  box.innerHTML = lista.length
+    ? `<strong>${lista.length} participante(s) escolheram ${escapeHtml(numero)}:</strong><br>` + lista.map(p => `• ${escapeHtml(p.nome)} — ${escapeHtml(p.whats)} — ${escapeHtml(p.sorteioTitulo)}`).join('<br>')
+    : `Ninguém escolheu a ${cfg.itemName} ${escapeHtml(numero)} ainda.`;
+}
+
+async function limparGanhadores(){
+  if(!confirm(`Excluir todo o histórico de ganhadores de ${cfg.label}?`)) return;
+  for(const g of ganhadores) await deleteDoc(doc(firestore, `ganhadores_${cfg.tipo}`, g.id));
+  alert('Histórico de ganhadores excluído.');
+}
+
+async function limparParticipantes(){
+  if(!confirm(`Excluir todos os participantes de ${cfg.label}? Isso também libera as escolhas.`)) return;
+  for(const p of participantes) await deleteDoc(doc(firestore, `participantes_${cfg.tipo}`, p.id));
+  const resSnap = await getDocs(collection(firestore, `reservas_${cfg.tipo}`));
+  for(const item of resSnap.docs) await deleteDoc(doc(firestore, `reservas_${cfg.tipo}`, item.id));
+  const whatsSnap = await getDocs(collection(firestore, `whats_${cfg.tipo}`));
+  for(const item of whatsSnap.docs) await deleteDoc(doc(firestore, `whats_${cfg.tipo}`, item.id));
+  alert('Histórico de participantes excluído e escolhas liberadas.');
+}
+
 async function sortearGanhador(){
   const participanteId = $('ganhadorManual')?.value || '';
   if(!participanteId) return alert('Selecione um participante.');
@@ -529,7 +564,7 @@ async function sortearGanhador(){
     numero: nums.join(', '),
     sorteioId: p.sorteioId,
     sorteioTitulo: p.sorteioTitulo,
-    premio: s?.premio || 'Prêmio',
+    premio: s?.premio || '',
     data: new Date().toISOString().slice(0,10),
     criadoEm: serverTimestamp()
   });
@@ -554,45 +589,6 @@ async function limparTudo(){
   for(const item of resSnap.docs) await deleteDoc(doc(firestore, `reservas_${cfg.tipo}`, item.id));
   const whatsSnap = await getDocs(collection(firestore, `whats_${cfg.tipo}`));
   for(const item of whatsSnap.docs) await deleteDoc(doc(firestore, `whats_${cfg.tipo}`, item.id));
-}
-
-
-async function limparGanhadores(){
-  if(!confirm(`Excluir todo o histórico de ganhadores de ${cfg.label}?`)) return;
-  for(const g of ganhadores) await deleteDoc(doc(firestore, `ganhadores_${cfg.tipo}`, g.id));
-  alert('Histórico de ganhadores excluído.');
-}
-
-async function limparParticipantes(){
-  if(!confirm(`Excluir todo o histórico de participantes de ${cfg.label}? Isso também libera as escolhas.`)) return;
-  for(const p of participantes) await deleteDoc(doc(firestore, `participantes_${cfg.tipo}`, p.id));
-  const resSnap = await getDocs(collection(firestore, `reservas_${cfg.tipo}`));
-  for(const item of resSnap.docs) await deleteDoc(doc(firestore, `reservas_${cfg.tipo}`, item.id));
-  const whatsSnap = await getDocs(collection(firestore, `whats_${cfg.tipo}`));
-  for(const item of whatsSnap.docs) await deleteDoc(doc(firestore, `whats_${cfg.tipo}`, item.id));
-  alert('Histórico de participantes excluído e escolhas liberadas.');
-}
-
-function atualizarFiltroGanhador(){
-  const sorteioId = $('filtroSorteioGanhador')?.value || '';
-  const numero = $('filtroNumeroGanhador')?.value || '';
-  const box = $('resultadoFiltroGanhador');
-  if(!box) return;
-  if(!numero){ box.innerHTML = `Selecione uma ${cfg.itemName} para ver quem escolheu.`; return; }
-  const encontrados = participantes.filter(p => (!sorteioId || p.sorteioId === sorteioId) && numerosDoParticipante(p).includes(numero));
-  if(!encontrados.length){ box.innerHTML = `Ninguém escolheu a ${cfg.itemName} <strong>${escapeHtml(numero)}</strong>.`; return; }
-  box.innerHTML = `<strong>${encontrados.length}</strong> participante(s) escolheram ${escapeHtml(numero)}:<br>` + encontrados.map(p => `• ${escapeHtml(p.nome)} - ${escapeHtml(p.whats)} | ${escapeHtml(p.sorteioTitulo)}`).join('<br>');
-  const select = $('ganhadorManual');
-  if(select && encontrados.length === 1) select.value = encontrados[0].id;
-}
-
-function atualizarFiltroParticipantes(){
-  const numero = $('filtroParticipantesNumero')?.value || '';
-  const box = $('resultadoFiltroParticipantes');
-  if(!box) return;
-  if(!numero){ box.innerHTML = `Selecione uma ${cfg.itemName} para ver os nomes rapidamente.`; return; }
-  const encontrados = participantes.filter(p => numerosDoParticipante(p).includes(numero));
-  box.innerHTML = encontrados.length ? encontrados.map(p => `• ${escapeHtml(p.nome)} - ${escapeHtml(p.whats)} | ${escapeHtml(p.sorteioTitulo)}`).join('<br>') : `Ninguém escolheu a ${cfg.itemName} <strong>${escapeHtml(numero)}</strong>.`;
 }
 
 function bindEvents(){
@@ -661,17 +657,15 @@ function bindEvents(){
       return;
     }
 
-    const limparGanh = e.target.closest('#btnLimparGanhadores');
-    if(limparGanh){
-      e.preventDefault();
-      limparGanhadores();
+    const filtroG = e.target.closest('#filtroNumeroGanhador');
+    if(filtroG){
+      renderFiltroNumero('resultadoFiltroGanhador', filtroG.value);
       return;
     }
 
-    const limparPart = e.target.closest('#btnLimparParticipantes');
-    if(limparPart){
-      e.preventDefault();
-      limparParticipantes();
+    const filtroP = e.target.closest('#filtroNumeroParticipante');
+    if(filtroP){
+      renderFiltroNumero('resultadoFiltroParticipante', filtroP.value);
       return;
     }
 
@@ -686,6 +680,20 @@ function bindEvents(){
     if(salvar){
       e.preventDefault();
       salvarAparencia();
+      return;
+    }
+
+    const limparG = e.target.closest('#btnLimparGanhadores');
+    if(limparG){
+      e.preventDefault();
+      limparGanhadores();
+      return;
+    }
+
+    const limparP = e.target.closest('#btnLimparParticipantes');
+    if(limparP){
+      e.preventDefault();
+      limparParticipantes();
       return;
     }
 
@@ -712,8 +720,8 @@ function bindEvents(){
   }, {signal});
 
   document.addEventListener('change', e => {
-    if(e.target?.id === 'filtroNumeroGanhador' || e.target?.id === 'filtroSorteioGanhador') atualizarFiltroGanhador();
-    if(e.target?.id === 'filtroParticipantesNumero') atualizarFiltroParticipantes();
+    if(e.target?.id === 'filtroNumeroGanhador') renderFiltroNumero('resultadoFiltroGanhador', e.target.value);
+    if(e.target?.id === 'filtroNumeroParticipante') renderFiltroNumero('resultadoFiltroParticipante', e.target.value);
   }, {signal});
 
   document.getElementById('adminSenha')?.addEventListener('keydown', e => {
@@ -772,7 +780,7 @@ Object.assign(window, {
 
 Object.assign(window, {
   showPage, openLogin, loginAdmin, closeModal, adminTab, abrirCadastro,
-  openParticipar, selecionarNumero, salvarParticipacao, logoutAdmin, atualizarFiltroGanhador, atualizarFiltroParticipantes
+  openParticipar, selecionarNumero, salvarParticipacao, logoutAdmin
 });
 
 

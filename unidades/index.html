@@ -2,7 +2,8 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <link rel="icon" href="https://ugc.production.linktr.ee/21c8eac6-37f8-4d6e-b584-75554d3a60ef_image.png">
   <title>Sorteio de Unidades - JB PIX</title>
   <link rel="stylesheet" href="../assets/style.css">
 </head>
@@ -13,9 +14,10 @@
     <div class="menu">
       <button type="button" id="btnInicio">Início</button>
       <button type="button" id="btnGanhadores" class="secondary">Ganhadores</button>
-      <a class="btn secondary" href="../unidades/">Unidade</a>
-      <a class="btn secondary" href="../dezenas/">Dezena</a>
-      <a class="btn secondary" href="../grupos/">Grupo</a>
+      <a class="btn secondary" href="../unidades/">Unidades</a>
+      <a class="btn secondary" href="../dezenas/">Dezenas</a>
+      <a class="btn secondary" href="../centenas/">Centenas</a>
+      <a class="btn secondary" href="../grupos/">Grupos</a>
       <button type="button" id="btnAdmin" class="secondary">Admin</button>
     </div>
   </div>
@@ -29,7 +31,7 @@
         <button type="button" class="btn cadastro-btn-top" id="btnCadastro">👥 Ainda não tem cadastro? Cadastre-se na banca</button>
       </div>
       <span class="badge">🏆 Unidades online</span>
-      <h1>Unidades JB PIX</h1>
+      <h1>Unidades da Sorte</h1>
       <p class="lead">Escolha seu sorteio, cadastre seu nome e WhatsApp, selecione uma unidade disponível e acompanhe os ganhadores.</p>
       <div class="hero-actions">
         <button type="button" class="btn ok" id="btnParticiparAgora">🎟️ Participar Agora</button>
@@ -41,7 +43,7 @@
         <div class="stat"><strong id="countGanhadores">0</strong>Ganhadores</div>
       </div>
     </div>
-    <h2 class="section-title" id="sorteios">Sorteios disponíveis</h2>
+    <h2 class="section-title" id="sorteios">Sorteios</h2>
     <div class="grid" id="sorteiosGrid"></div>
   </section>
 
@@ -72,7 +74,7 @@
 </main>
 
 <footer>
-  <strong id="footerName">Kelly Menezes</strong> © <span id="year"></span> — Sistema de Sorteios JB PIX
+  <strong id="footerName">Kelly Menezes</strong> © <span id="year"></span> — Sistema de Sorteios
 </footer>
 
 <div id="participarModal" class="modal hidden">
