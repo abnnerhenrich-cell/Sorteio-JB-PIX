@@ -1,18 +1,18 @@
-# JB PIX Sorteios - versão editada
+# JB PIX Sorteios
 
-Alterações aplicadas:
-- Tema vermelho com preto e nome JB PIX.
-- Ícone/link fornecido colocado no topo e como favicon.
-- Páginas de Unidades, Dezenas, Centenas e Grupos.
-- Unidades: 0 a 9.
-- Dezenas: 00 a 99.
-- Centenas: 000 a 999.
-- Grupos: 01 a 25.
-- Sorteio pausado continua aparecendo para todos, mas não permite escolhas.
-- Ao excluir sorteio, participantes, reservas, WhatsApps e ganhadores vinculados também são excluídos.
-- Filtro no admin para selecionar número/grupo e ver quem escolheu.
-- Botão para excluir histórico de ganhadores.
-- Botão para excluir histórico de participantes e liberar escolhas.
-- Prêmio pode ficar em branco para preencher no painel admin.
+Sistema de sorteios com painel admin protegido por Firebase Authentication usando e-mail e senha.
 
-Admin continua em `/admin/`, redirecionando para dezenas com painel aberto.
+## Antes de publicar
+
+1. No Firebase, abra Authentication.
+2. Ative o método E-mail/senha.
+3. Em Users, crie o usuário admin:
+   kellymenezes.promotorajb@gmail.com
+4. Defina uma senha forte.
+5. Em Cloud Firestore > Regras, cole o conteúdo do arquivo `firebase-rules.txt` e clique em Publicar.
+6. Publique os arquivos no GitHub/Firebase Hosting.
+
+## Importante
+
+O visitante consegue apenas participar do sorteio.
+O admin logado consegue criar, pausar, excluir sorteios, limpar participantes e confirmar ganhadores.

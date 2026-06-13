@@ -3,24 +3,30 @@ import {
   getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc, getDoc,
   onSnapshot, query, where, getDocs, serverTimestamp, runTransaction
 } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+import {
+  getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
 
 const cfg = window.SORTEIO_CONFIG || {tipo:'dezenas',label:'Dezenas',itemName:'dezena',total:100,digits:2};
 
 // Firebase novo da Kelly - projeto: sorteio-f5431
 // Este mesmo projeto salva dezenas e centenas em coleções separadas.
 const firebaseConfig = {
-  apiKey: "AIzaSyDm4LiN-4gIhtFfZvuCyFB9hHAv0rXtu5I",
-  authDomain: "jbpix-8537d.firebaseapp.com",
-  projectId: "jbpix-8537d",
-  storageBucket: "jbpix-8537d.firebasestorage.app",
-  messagingSenderId: "345986235961",
-  appId: "1:345986235961:web:7ed3f87327d17c586757e8",
-  measurementId: "G-84X6VNL7XT"
+  apiKey: "AIzaSyBsGIvJlD9F9fH74qJUzsZ3GN139hKnpcs",
+  authDomain: "sorteio-f5431.firebaseapp.com",
+  projectId: "sorteio-f5431",
+  storageBucket: "sorteio-f5431.firebasestorage.app",
+  messagingSenderId: "788509225413",
+  appId: "1:788509225413:web:8b5cb3683b4203d7955bac",
+  measurementId: "G-8NVZNYYHMJ"
 };
 const app = initializeApp(firebaseConfig);
 const firestore = getFirestore(app);
+const auth = getAuth(app);
 
-const ADMIN_PASSWORD = 'Marjorie06092025';
+// E-mail autorizado para acessar o painel admin.
+// Crie este usuário no Firebase Authentication > Users.
+const ADMIN_EMAIL = 'kellymenezes.promotorajb@gmail.com';
 
 let currentSorteioId = null;
 let selectedNumeros = [];
@@ -28,6 +34,8 @@ let sorteios = [];
 let participantes = [];
 let ganhadores = [];
 let settings = {nome:'JB PIX',rodape:'Kelly Menezes',cadastroUrl:''};
+let adminLogado = false;
+let authReady = false;
 
 const $ = (id) => document.getElementById(id);
 const col = (nome) => collection(firestore, `${nome}_${cfg.tipo}`);
@@ -85,7 +93,7 @@ function showPage(page){
   }
 
   if(page === 'admin'){
-    if(sessionStorage.getItem('adminLogado') !== 'sim'){
+    if(!adminLogado){
       openLogin();
       return;
     }
@@ -103,7 +111,9 @@ function showPage(page){
 
 function openLogin(){
   const modal = $('loginModal');
+  const email = $('adminEmail');
   const senha = $('adminSenha');
+  if(email && !email.value) email.value = ADMIN_EMAIL;
   if(senha) senha.value = '';
   if(modal) modal.classList.remove('hidden');
   setTimeout(()=>senha?.focus(), 80);
@@ -113,25 +123,34 @@ function closeModal(id){
   $(id)?.classList.add('hidden');
 }
 
-function loginAdmin(){
+async function loginAdmin(){
+  const email = ($('adminEmail')?.value || '').trim().toLowerCase();
   const senha = $('adminSenha')?.value || '';
-  if(senha === ADMIN_PASSWORD){
-    sessionStorage.setItem('adminLogado','sim');
+  if(!email || !senha) return alert('Preencha e-mail e senha do administrador.');
+  if(email !== ADMIN_EMAIL.toLowerCase()) return alert('Este e-mail não está autorizado como admin.');
+
+  const btn = $('btnEntrarAdmin');
+  if(btn){ btn.disabled = true; btn.textContent = 'Entrando...'; }
+  try{
+    await signInWithEmailAndPassword(auth, email, senha);
     closeModal('loginModal');
     showPage('admin');
-    return;
+  }catch(err){
+    console.error('Erro no login admin:', err);
+    alert('Não foi possível entrar. Confira se o usuário foi criado no Firebase Authentication e se a senha está correta.');
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = '🚀 Entrar no Painel'; }
   }
-  sessionStorage.removeItem('adminLogado');
-  alert('Senha incorreta. Acesso negado.');
 }
 
-function logoutAdmin(){
-  sessionStorage.removeItem('adminLogado');
+async function logoutAdmin(){
+  await signOut(auth);
+  adminLogado = false;
   showPage('home');
 }
 
 function adminTab(tab){
-  if(sessionStorage.getItem('adminLogado') !== 'sim'){
+  if(!adminLogado){
     openLogin();
     return;
   }
@@ -202,7 +221,7 @@ function renderAll(){
     </div>`).join('') || '<div class="sorteio">Nenhum ganhador divulgado ainda.</div>';
   }
 
-  if(sessionStorage.getItem('adminLogado') === 'sim') renderAdmin();
+  if(adminLogado) renderAdmin();
 }
 
 function openParticipar(id){
@@ -336,7 +355,7 @@ async function salvarParticipacao(){
 }
 
 function renderAdmin(){
-  if(sessionStorage.getItem('adminLogado') !== 'sim') return;
+  if(!adminLogado) return;
 
   if($('tabDashboard')) $('tabDashboard').innerHTML = `
     <h2 class="section-title">Painel Admin - ${cfg.label}</h2>
@@ -727,6 +746,9 @@ function bindEvents(){
   document.getElementById('adminSenha')?.addEventListener('keydown', e => {
     if(e.key === 'Enter') loginAdmin();
   }, {signal});
+  document.getElementById('adminEmail')?.addEventListener('keydown', e => {
+    if(e.key === 'Enter') loginAdmin();
+  }, {signal});
 }
 
 
@@ -741,6 +763,24 @@ function mostrarErroFirebase(erro, acao='operação'){
     'Cole e publique as regras do arquivo firebase-rules.txt em Firestore Database > Regras.'
   );
   setTimeout(()=>firebaseAvisoMostrado=false, 4000);
+}
+
+function iniciarAuth(){
+  onAuthStateChanged(auth, user => {
+    authReady = true;
+    adminLogado = !!(user && user.email && user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase());
+    if(user && !adminLogado){
+      signOut(auth);
+      alert('Este login não tem permissão de administrador.');
+    }
+    if(adminLogado){
+      closeModal('loginModal');
+      if(location.hash === '#admin') showPage('admin');
+    }else if(!adminLogado && !($('adminPage')?.classList.contains('hidden'))){
+      showPage('home');
+    }
+    renderAll();
+  });
 }
 
 function iniciarFirebase(){
@@ -796,4 +836,5 @@ if(document.readyState === 'loading'){
   iniciarInterfaceSegura();
 }
 
+iniciarAuth();
 iniciarFirebase();
