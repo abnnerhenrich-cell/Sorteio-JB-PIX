@@ -36,12 +36,32 @@ let ganhadores = [];
 let settings = {nome:'JB PIX',rodape:'JB PIX',cadastroUrl:''};
 let adminLogado = false;
 let authReady = false;
+let renderPendente = false;
+let participantesInscritos = false;
+let ganhadoresInscritos = false;
 
 const $ = (id) => document.getElementById(id);
 const col = (nome) => collection(firestore, `${nome}_${cfg.tipo}`);
 const configDoc = () => doc(firestore, 'config', `site_${cfg.tipo}`);
 const reservaDoc = (sorteioId, numero) => doc(firestore, `reservas_${cfg.tipo}`, `${sorteioId}_${numero}`);
 const whatsDoc = (sorteioId, whatsLimpo) => doc(firestore, `whats_${cfg.tipo}`, `${sorteioId}_${whatsLimpo}`);
+
+function agendarRender(){
+  if(renderPendente) return;
+  renderPendente = true;
+  requestAnimationFrame(() => {
+    renderPendente = false;
+    renderAll();
+  });
+}
+
+function quandoLivre(fn, espera = 250){
+  if('requestIdleCallback' in window){
+    window.requestIdleCallback(fn, {timeout: espera + 1000});
+  }else{
+    setTimeout(fn, espera);
+  }
+}
 
 function escapeHtml(v){
   return String(v ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
@@ -86,6 +106,7 @@ function showPage(page){
   hideAllPages();
 
   if(page === 'ganhadores'){
+    inscreverGanhadores();
     $('ganhadoresPage')?.classList.remove('hidden');
     renderAll();
     window.scrollTo({top:0, behavior:'smooth'});
@@ -93,6 +114,8 @@ function showPage(page){
   }
 
   if(page === 'admin'){
+    inscreverParticipantes();
+    inscreverGanhadores();
     if(!adminLogado){
       openLogin();
       return;
@@ -225,6 +248,7 @@ function renderAll(){
 }
 
 function openParticipar(id){
+  inscreverParticipantes();
   currentSorteioId = id;
   selectedNumeros = [];
   const s = sorteios.find(x => x.id === id);
@@ -514,7 +538,11 @@ async function criarSorteio(){
 async function toggleSorteio(id){
   const s = sorteios.find(x => x.id === id);
   if(!s) return;
-  await updateDoc(doc(firestore, `sorteios_${cfg.tipo}`, id), {status:s.status==='ativo'?'pausado':'ativo'});
+  try{
+    await updateDoc(doc(firestore, `sorteios_${cfg.tipo}`, id), {status:s.status==='ativo'?'pausado':'ativo'});
+  }catch(err){
+    mostrarErroFirebase(err, 'ativar/pausar sorteio');
+  }
 }
 
 async function excluirSorteio(id){
@@ -783,34 +811,54 @@ function iniciarAuth(){
   });
 }
 
+let unsubscribeSorteios = null;
+let unsubscribeParticipantes = null;
+let unsubscribeGanhadores = null;
+let unsubscribeConfig = null;
+
+function inscreverParticipantes(){
+  if(participantesInscritos) return;
+  participantesInscritos = true;
+  unsubscribeParticipantes = onSnapshot(col('participantes'), snap => {
+    participantes = snap.docs.map(d => ({id:d.id, ...d.data()}));
+    agendarRender();
+  }, erro => mostrarErroFirebase(erro, 'ler participantes'));
+}
+
+function inscreverGanhadores(){
+  if(ganhadoresInscritos) return;
+  ganhadoresInscritos = true;
+  unsubscribeGanhadores = onSnapshot(col('ganhadores'), snap => {
+    ganhadores = snap.docs.map(d => ({id:d.id, ...d.data()}));
+    agendarRender();
+  }, erro => mostrarErroFirebase(erro, 'ler ganhadores'));
+}
+
 function iniciarFirebase(){
-  onSnapshot(col('sorteios'), snap => {
+  // Primeiro carrega somente o essencial para a tela abrir rápido no celular.
+  unsubscribeConfig = onSnapshot(configDoc(), snap => {
+    if(snap.exists()) settings = {...settings, ...snap.data()};
+    agendarRender();
+  }, erro => mostrarErroFirebase(erro, 'ler configurações'));
+
+  unsubscribeSorteios = onSnapshot(col('sorteios'), snap => {
     sorteios = snap.docs
       .map(d => ({id:d.id, ...d.data()}))
       .sort((a,b) => String(b.data||'').localeCompare(String(a.data||'')));
-    renderAll();
+    agendarRender();
   }, erro => mostrarErroFirebase(erro, 'ler sorteios'));
 
-  onSnapshot(col('participantes'), snap => {
-    participantes = snap.docs.map(d => ({id:d.id, ...d.data()}));
-    renderAll();
-  }, erro => mostrarErroFirebase(erro, 'ler participantes'));
-
-  onSnapshot(col('ganhadores'), snap => {
-    ganhadores = snap.docs.map(d => ({id:d.id, ...d.data()}));
-    renderAll();
-  }, erro => mostrarErroFirebase(erro, 'ler ganhadores'));
-
-  onSnapshot(configDoc(), snap => {
-    if(snap.exists()) settings = {...settings, ...snap.data()};
-    renderAll();
-  }, erro => mostrarErroFirebase(erro, 'ler configurações'));
+  // Participantes e ganhadores entram depois, para não travar a primeira tela no iPhone/Safari.
+  quandoLivre(() => inscreverParticipantes(), 600);
+  quandoLivre(() => inscreverGanhadores(), 1000);
 }
 
-window.addEventListener('mousemove', e => {
-  document.body.style.setProperty('--mx', `${(e.clientX/window.innerWidth)*100}%`);
-  document.body.style.setProperty('--my', `${(e.clientY/window.innerHeight)*100}%`);
-});
+if(window.matchMedia && window.matchMedia('(pointer: fine)').matches){
+  window.addEventListener('mousemove', e => {
+    document.body.style.setProperty('--mx', `${(e.clientX/window.innerWidth)*100}%`);
+    document.body.style.setProperty('--my', `${(e.clientY/window.innerHeight)*100}%`);
+  }, {passive:true});
+}
 // deixa disponível também para qualquer onclick antigo que tenha sobrado
 Object.assign(window, {
   showPage, openLogin, loginAdmin, closeModal, adminTab, abrirCadastro,
